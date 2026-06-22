@@ -277,7 +277,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [compareIds, setCompareIds] = useState([]);
   const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState("openRate");
+  const [sortKey, setSortKey] = useState("month");
 
   const load = useCallback(async () => {
     try {
@@ -335,9 +335,10 @@ export default function Page() {
 
   const fichas = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const byDate = sortKey === "date" || sortKey === "month";
     return [...eCamps]
-      .filter((c) => !q || (c.name || "").toLowerCase().includes(q) || (c.subject || "").toLowerCase().includes(q))
-      .sort((a, b) => (sortKey === "date" ? new Date(b.date) - new Date(a.date) : (b[sortKey] || 0) - (a[sortKey] || 0)));
+      .filter((c) => c.date && (!q || (c.name || "").toLowerCase().includes(q) || (c.subject || "").toLowerCase().includes(q)))
+      .sort((a, b) => (byDate ? new Date(b.date) - new Date(a.date) : (b[sortKey] || 0) - (a[sortKey] || 0)));
   }, [eCamps, search, sortKey]);
 
   // Agrupa las fichas por mes (más reciente primero) para navegar toda la data.
@@ -504,6 +505,7 @@ export default function Page() {
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <input placeholder="Buscar correo…" value={search} onChange={(e) => setSearch(e.target.value)} style={selStyle} />
                 <select value={sortKey} onChange={(e) => setSortKey(e.target.value)} style={selStyle}>
+                  <option value="month">Agrupar por mes</option>
                   <option value="openRate">Ordenar: Apertura</option>
                   <option value="clickRate">Ordenar: Clic</option>
                   <option value="sent">Ordenar: Enviados</option>
@@ -511,18 +513,24 @@ export default function Page() {
                 </select>
               </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-              {fichasPorMes.map((grp, gi) => (
-                <details key={grp.key} open={gi === 0}>
-                  <summary style={{ cursor: "pointer", fontSize: 14, fontWeight: 600, color: "#cdd9ee", padding: "8px 0", borderBottom: "1px solid #1f2b45", marginBottom: 10 }}>
-                    {grp.label} <span style={{ color: "#5b6b84", fontWeight: 400 }}>· {grp.items.length} correos</span>
-                  </summary>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {grp.items.map((c) => <EmailCard key={c.id} c={c} avgOpen={avgOpen} />)}
-                  </div>
-                </details>
-              ))}
-            </div>
+            {sortKey === "month" ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                {fichasPorMes.map((grp, gi) => (
+                  <details key={grp.key} open={gi === 0}>
+                    <summary style={{ cursor: "pointer", fontSize: 14, fontWeight: 600, color: "#cdd9ee", padding: "8px 0", borderBottom: "1px solid #1f2b45", marginBottom: 10 }}>
+                      {grp.label} <span style={{ color: "#5b6b84", fontWeight: 400 }}>· {grp.items.length} correos</span>
+                    </summary>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {grp.items.map((c) => <EmailCard key={c.id} c={c} avgOpen={avgOpen} />)}
+                    </div>
+                  </details>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {fichas.map((c) => <EmailCard key={c.id} c={c} avgOpen={avgOpen} />)}
+              </div>
+            )}
           </div>
         )}
       </Section>

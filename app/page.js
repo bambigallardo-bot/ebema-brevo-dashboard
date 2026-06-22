@@ -370,6 +370,17 @@ export default function Page() {
       ]
     : [];
 
+  const waPorMes = useMemo(() => {
+    const map = new Map();
+    for (const c of wa?.campaigns || []) {
+      if (!c.date) continue;
+      const k = monthKey(c.date);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(c);
+    }
+    return [...map.keys()].sort((a, b) => b.localeCompare(a)).map((k) => ({ key: k, label: monthLabel(k), items: map.get(k) }));
+  }, [wa]);
+
   const listPie = useMemo(() => {
     const ls = [...(lists?.lists || [])].filter((l) => l.subscribers > 0).sort((a, b) => b.subscribers - a.subscribers);
     const top = ls.slice(0, 6).map((l) => ({ name: l.name, value: l.subscribers }));
@@ -599,8 +610,17 @@ export default function Page() {
         {wa?.campaigns?.length > 0 && (
           <div style={{ marginTop: 24 }}>
             <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>🗂️ Ficha por campaña de WhatsApp</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {wa.campaigns.slice(0, 300).map((c) => <WaCard key={c.id} c={c} />)}
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {waPorMes.map((grp, gi) => (
+                <details key={grp.key} open={gi === 0}>
+                  <summary style={{ cursor: "pointer", fontSize: 14, fontWeight: 600, color: "#cdd9ee", padding: "8px 0", borderBottom: "1px solid #1f2b45", marginBottom: 10 }}>
+                    {grp.label} <span style={{ color: "#5b6b84", fontWeight: 400 }}>· {grp.items.length} campañas</span>
+                  </summary>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {grp.items.map((c) => <WaCard key={c.id} c={c} />)}
+                  </div>
+                </details>
+              ))}
             </div>
           </div>
         )}

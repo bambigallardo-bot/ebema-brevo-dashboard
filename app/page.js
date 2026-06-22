@@ -592,7 +592,24 @@ export default function Page() {
       <Section title="💬 WhatsApp (campañas)" subtitle={wa?.clicksSource === "analytics" ? "Clics medidos vía Google Analytics (utm_campaign)" : "Clics: conecta Google Analytics para medirlos (ver configuración)"}>
         {data?.errors?.whatsapp && <div style={{ color: "#f5c97b", fontSize: 13, marginBottom: 10 }}>WhatsApp no disponible o sin campañas: {data.errors.whatsapp}</div>}
         {data?.errors?.analytics && <div style={{ color: "#f5c97b", fontSize: 13, marginBottom: 10 }}>Analytics: {data.errors.analytics}</div>}
-        {wa?.gaInfo && <div style={{ color: "#5b6b84", fontSize: 12, marginBottom: 10 }}>GA: {wa.gaInfo.campaigns} campañas con datos, {fmt(wa.gaInfo.totalClicks)} sesiones en total · {wa.gaInfo.matched} campañas cruzadas</div>}
+        {wa?.gaInfo && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ color: "#5b6b84", fontSize: 12 }}>GA: {wa.gaInfo.campaigns} campañas con datos, {fmt(wa.gaInfo.totalClicks)} sesiones en total · {wa.gaInfo.matched} campañas cruzadas</div>
+            {wa.gaInfo.names?.length > 0 && (
+              <details style={{ marginTop: 6 }}>
+                <summary style={{ cursor: "pointer", color: "#5b6b84", fontSize: 12 }}>🔧 Ver nombres de campaña que ve GA (debug)</summary>
+                <div style={{ ...panel, marginTop: 8, maxHeight: 220, overflowY: "auto", fontSize: 12 }}>
+                  {wa.gaInfo.names.map((g, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "3px 0", color: "#cdd9ee" }}>
+                      <span>{g.name || "(sin nombre)"}</span>
+                      <span style={{ color: "#8aa0bf" }}>{fmt(g.clicks)}</span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+        )}
         <div style={grid(150)}>
           <Card label="Enviados" value={fmt(wa?.totals?.sent)} />
           <Card label="Entregados" value={fmt(wa?.totals?.delivered)} />

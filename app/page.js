@@ -539,8 +539,9 @@ export default function Page() {
       </Section>
 
       {/* WHATSAPP */}
-      <Section title="💬 WhatsApp (campañas)">
+      <Section title="💬 WhatsApp (campañas)" subtitle={wa?.clicksSource === "analytics" ? "Clics medidos vía Google Analytics (utm_campaign)" : "Clics: conecta Google Analytics para medirlos (ver configuración)"}>
         {data?.errors?.whatsapp && <div style={{ color: "#f5c97b", fontSize: 13, marginBottom: 10 }}>WhatsApp no disponible o sin campañas: {data.errors.whatsapp}</div>}
+        {data?.errors?.analytics && <div style={{ color: "#f5c97b", fontSize: 13, marginBottom: 10 }}>Analytics: {data.errors.analytics}</div>}
         <div style={grid(150)}>
           <Card label="Enviados" value={fmt(wa?.totals?.sent)} />
           <Card label="Entregados" value={fmt(wa?.totals?.delivered)} />

@@ -28,6 +28,17 @@ const shortDate = (d) => (d ? new Date(d).toLocaleDateString("es-CL", { day: "2-
 const weekday = (d) => (d ? new Date(d).toLocaleDateString("es-CL", { weekday: "long" }) : "—");
 const hourMin = (d) => (d ? new Date(d).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }) : "—");
 const brevoUrl = (id) => `https://app.brevo.com/camp/report/${id}`;
+const monthKey = (d) => {
+  if (!d) return "sin-fecha";
+  const x = new Date(d);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}`;
+};
+const monthLabel = (key) => {
+  if (key === "sin-fecha") return "Sin fecha";
+  const [y, m] = key.split("-").map(Number);
+  const s = new Date(y, m - 1, 1).toLocaleDateString("es-CL", { month: "long", year: "numeric" });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
 
 // ---------------- UI helpers ----------------
 function Card({ label, value, accent }) {
@@ -329,6 +340,17 @@ export default function Page() {
       .sort((a, b) => (sortKey === "date" ? new Date(b.date) - new Date(a.date) : (b[sortKey] || 0) - (a[sortKey] || 0)));
   }, [eCamps, search, sortKey]);
 
+  // Agrupa las fichas por mes (más reciente primero) para navegar toda la data.
+  const fichasPorMes = useMemo(() => {
+    const map = new Map();
+    for (const c of fichas) {
+      const k = monthKey(c.date);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(c);
+    }
+    return [...map.keys()].sort((a, b) => b.localeCompare(a)).map((k) => ({ key: k, label: monthLabel(k), items: map.get(k) }));
+  }, [fichas]);
+
   const emailFunnel = email?.totals
     ? [
         { label: "Enviados", value: email.totals.sent },
@@ -489,8 +511,17 @@ export default function Page() {
                 </select>
               </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {fichas.slice(0, 60).map((c) => <EmailCard key={c.id} c={c} avgOpen={avgOpen} />)}
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {fichasPorMes.map((grp, gi) => (
+                <details key={grp.key} open={gi === 0}>
+                  <summary style={{ cursor: "pointer", fontSize: 14, fontWeight: 600, color: "#cdd9ee", padding: "8px 0", borderBottom: "1px solid #1f2b45", marginBottom: 10 }}>
+                    {grp.label} <span style={{ color: "#5b6b84", fontWeight: 400 }}>· {grp.items.length} correos</span>
+                  </summary>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {grp.items.map((c) => <EmailCard key={c.id} c={c} avgOpen={avgOpen} />)}
+                  </div>
+                </details>
+              ))}
             </div>
           </div>
         )}
@@ -561,7 +592,7 @@ export default function Page() {
           <div style={{ marginTop: 24 }}>
             <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>🗂️ Ficha por campaña de WhatsApp</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {wa.campaigns.slice(0, 40).map((c) => <WaCard key={c.id} c={c} />)}
+              {wa.campaigns.slice(0, 300).map((c) => <WaCard key={c.id} c={c} />)}
             </div>
           </div>
         )}

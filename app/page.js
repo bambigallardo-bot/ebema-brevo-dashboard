@@ -502,7 +502,7 @@ export default function Page() {
         <div>
           <h1 style={{ margin: 0, fontSize: 24 }}>Ebema · Dashboard Brevo</h1>
           <div style={{ color: "#8aa0bf", fontSize: 13, marginTop: 4 }}>
-            {loading ? "Cargando…" : data?.updatedAt ? `Actualizado: ${new Date(data.updatedAt).toLocaleString("es-CL")} · auto-refresh 60s` : ""}
+            {loading ? "Cargando…" : data?.updatedAt ? `Actualizado: ${new Date(data.updatedAt).toLocaleString("es-CL")} · auto-refresh 60s${data?.stale ? " · mostrando última copia (Brevo ocupado)" : ""}` : ""}
           </div>
         </div>
         <button onClick={load} style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 10, padding: "10px 16px", cursor: "pointer", fontSize: 14 }}>Actualizar ahora</button>

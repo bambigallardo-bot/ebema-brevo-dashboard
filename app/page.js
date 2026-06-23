@@ -511,26 +511,9 @@ export default function Page() {
       {error && <div style={{ marginTop: 20, background: "#3b1620", border: "1px solid #6b2333", color: "#ffb4c0", padding: "12px 16px", borderRadius: 12 }}>{error}</div>}
 
       {/* RESUMEN EJECUTIVO */}
-      {(insights.length > 0 || improvements.length > 0 || predictions.length > 0) && (
-        <Section title="🧠 Resumen ejecutivo" subtitle="Análisis automático: cómo vamos, qué mejorar y qué hacer en la próxima campaña">
-          {improvements.length > 0 && (
-            <>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#cdd9ee", margin: "6px 0 10px" }}>🎯 Qué mejorar</div>
-              <div style={grid(280)}>{improvements.map((it, i) => <Insight key={i} {...it} />)}</div>
-            </>
-          )}
-          {predictions.length > 0 && (
-            <>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#cdd9ee", margin: "22px 0 10px" }}>🔮 Recomendaciones para la próxima campaña</div>
-              <div style={grid(280)}>{predictions.map((it, i) => <Insight key={i} {...it} />)}</div>
-            </>
-          )}
-          {insights.length > 0 && (
-            <>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#cdd9ee", margin: "22px 0 10px" }}>📌 Lo destacado</div>
-              <div style={grid(280)}>{insights.map((it, i) => <Insight key={i} {...it} />)}</div>
-            </>
-          )}
+      {insights.length > 0 && (
+        <Section title="🧠 Resumen ejecutivo" subtitle="Lo más destacado de tus campañas">
+          <div style={grid(280)}>{insights.map((it, i) => <Insight key={i} {...it} />)}</div>
         </Section>
       )}
 
@@ -764,6 +747,12 @@ export default function Page() {
           </div>
         )}
       </Section>
+
+      {predictions.length > 0 && (
+        <Section title="🔮 Recomendaciones para la próxima campaña" subtitle="Mejor día, horario y tipo de asuntos según tu historial">
+          <div style={grid(280)}>{predictions.map((it, i) => <Insight key={i} {...it} />)}</div>
+        </Section>
+      )}
 
       <footer style={{ marginTop: 50, color: "#5b6b84", fontSize: 12, textAlign: "center" }}>Datos vía API de Brevo · Ebema</footer>
     </main>

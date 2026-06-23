@@ -180,6 +180,109 @@ function buildInsights(data) {
   return out;
 }
 
+// ---------------- Motor de mejoras y predicción ----------------
+const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+const wAvgOpen = (arr) => {
+  const d = arr.reduce((a, c) => a + (c.delivered || 0), 0);
+  const o = arr.reduce((a, c) => a + (c.opens || 0), 0);
+  return d ? Math.round((o / d) * 1000) / 10 : 0;
+};
+function groupRate(camps, keyFn) {
+  const m = {};
+  for (const c of camps) {
+    const k = keyFn(c);
+    if (!k) continue;
+    m[k] = m[k] || { o: 0, d: 0, n: 0 };
+    m[k].o += c.opens || 0;
+    m[k].d += c.delivered || 0;
+    m[k].n += 1;
+  }
+  return Object.entries(m)
+    .map(([k, v]) => ({ k: cap(k), rate: v.d ? Math.round((v.o / v.d) * 1000) / 10 : 0, n: v.n }))
+    .filter((x) => x.n >= 2)
+    .sort((a, b) => b.rate - a.rate);
+}
+
+// Qué mejorar / qué estamos haciendo mal
+function buildImprovements(data) {
+  const out = [];
+  const e = data?.email;
+  const l = data?.lists;
+  const t = e?.totals;
+  if (t) {
+    if (t.openRate < 30)
+      out.push({ emoji: "📬", tone: "warn", title: "Subir las aperturas", text: `La apertura promedio (${t.openRate}%) está bajo el rango del retail (30–35%). Foco en el asunto, un remitente reconocible y la hora de envío.` });
+    if (t.clickRate < 2)
+      out.push({ emoji: "👆", tone: "warn", title: "Mejorar los clics", text: `La tasa de clic (${t.clickRate}%) está bajo la referencia (2–3%). Usa un CTA claro, un solo botón principal y menos enlaces compitiendo.` });
+    if (t.bounceRate > 2)
+      out.push({ emoji: "🧹", tone: "warn", title: "Limpiar la base", text: `El rebote (${t.bounceRate}%) supera el ideal (2%). Hay direcciones inválidas que conviene depurar para cuidar la entregabilidad.` });
+    if (t.unsubs > 0 && t.delivered && t.unsubs / t.delivered > 0.005)
+      out.push({ emoji: "🚪", tone: "warn", title: "Cuidar las bajas", text: `Las bajas (${fmt(t.unsubs)}) están algo altas. Revisa frecuencia de envío y relevancia del contenido por segmento.` });
+  }
+  if (l?.lists?.length) {
+    const top = [...l.lists].sort((a, b) => b.subscribers - a.subscribers)[0];
+    const pctTop = l.totalContacts ? Math.round((top.subscribers / l.totalContacts) * 100) : 0;
+    if (pctTop >= 60)
+      out.push({ emoji: "🎯", tone: "warn", title: "Diversificar la base", text: `El ${pctTop}% de los contactos está en «${top.name}». Estás muy concentrado en una lista; segmentar el resto abre oportunidades.` });
+  }
+  if (out.length === 0)
+    out.push({ emoji: "✅", tone: "good", title: "Vas por buen camino", text: "Tus métricas están en rangos sanos. Mantén la consistencia y sigue testeando asuntos y horarios." });
+  return out;
+}
+
+// Recomendaciones predictivas (mejor día, horario y asuntos)
+function subjectTips(camps) {
+  const out = [];
+  const valid = camps.filter((c) => c.subject && c.sent >= 20);
+  if (valid.length < 5) return out;
+  const features = [
+    { label: "con emoji", test: (c) => /\p{Extended_Pictographic}/u.test(c.subject) },
+    { label: "que mencionan precio u oferta", test: (c) => /\$|\bdesde\b|oferta|descuento|gratis|precio/i.test(c.subject) },
+    { label: "con urgencia (últimos días, hoy, ahora)", test: (c) => /últim|hoy|ahora|aprovecha|queda|no te lo/i.test(c.subject) },
+    { label: "cortos (≤40 caracteres)", test: (c) => c.subject.length <= 40 },
+    { label: "en forma de pregunta", test: (c) => c.subject.includes("?") },
+  ];
+  for (const f of features) {
+    const withF = valid.filter(f.test);
+    const without = valid.filter((c) => !f.test(c));
+    if (withF.length >= 3 && without.length >= 3) {
+      const rw = wAvgOpen(withF);
+      const ro = wAvgOpen(without);
+      const diff = Math.round((rw - ro) * 10) / 10;
+      if (Math.abs(diff) >= 3)
+        out.push({
+          emoji: "✍️",
+          tone: diff > 0 ? "good" : "warn",
+          title: `Asuntos ${f.label}`,
+          text: diff > 0
+            ? `Abren ${diff} pts más (${rw}% vs ${ro}%). Conviene usarlos más seguido.`
+            : `Abren ${Math.abs(diff)} pts menos (${rw}% vs ${ro}%). Mejor evitarlos o replantearlos.`,
+        });
+    }
+  }
+  const top = [...valid].sort((a, b) => b.openRate - a.openRate)[0];
+  if (top) out.push({ emoji: "⭐", tone: "good", title: "Asunto que mejor funcionó", text: `«${top.subject}» logró ${top.openRate}%. Inspírate en su estilo para los próximos envíos.` });
+  return out;
+}
+
+function buildPredictions(data) {
+  const out = [];
+  const camps = (data?.email?.campaigns || []).filter((c) => c.date && c.sent >= 20);
+  if (camps.length >= 4) {
+    const wd = groupRate(camps, (c) => new Date(c.date).toLocaleDateString("es-CL", { weekday: "long" }));
+    if (wd.length >= 2)
+      out.push({ emoji: "📅", tone: "info", title: "Mejor día para enviar", text: `Históricamente los ${wd[0].k} rinden mejor (${wd[0].rate}% de apertura) y los ${wd[wd.length - 1].k} peor (${wd[wd.length - 1].rate}%). Programa lo importante en ${wd[0].k}.` });
+    const tod = groupRate(camps, (c) => {
+      const h = new Date(c.date).getHours();
+      return h < 12 ? "la mañana" : h < 19 ? "la tarde" : "la noche";
+    });
+    if (tod.length >= 2)
+      out.push({ emoji: "⏰", tone: "info", title: "Mejor horario", text: `Los envíos en ${tod[0].k} promedian ${tod[0].rate}% de apertura, tu mejor franja. Apunta a ese horario la próxima vez.` });
+  }
+  out.push(...subjectTips(camps));
+  return out;
+}
+
 // ---------------- Ficha expandible por correo ----------------
 function EmailCard({ c, avgOpen }) {
   const steps = [
@@ -305,6 +408,8 @@ export default function Page() {
   const avgOpen = email?.totals?.openRate;
 
   const insights = useMemo(() => (data ? buildInsights(data) : []), [data]);
+  const improvements = useMemo(() => (data ? buildImprovements(data) : []), [data]);
+  const predictions = useMemo(() => (data ? buildPredictions(data) : []), [data]);
 
   const eCamps = email?.campaigns || [];
   const sumE = (k) => eCamps.reduce((a, c) => a + (c[k] || 0), 0);
@@ -406,9 +511,26 @@ export default function Page() {
       {error && <div style={{ marginTop: 20, background: "#3b1620", border: "1px solid #6b2333", color: "#ffb4c0", padding: "12px 16px", borderRadius: 12 }}>{error}</div>}
 
       {/* RESUMEN EJECUTIVO */}
-      {insights.length > 0 && (
-        <Section title="🧠 Resumen ejecutivo" subtitle="Conclusiones automáticas a partir de tus datos">
-          <div style={grid(280)}>{insights.map((it, i) => <Insight key={i} {...it} />)}</div>
+      {(insights.length > 0 || improvements.length > 0 || predictions.length > 0) && (
+        <Section title="🧠 Resumen ejecutivo" subtitle="Análisis automático: cómo vamos, qué mejorar y qué hacer en la próxima campaña">
+          {improvements.length > 0 && (
+            <>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#cdd9ee", margin: "6px 0 10px" }}>🎯 Qué mejorar</div>
+              <div style={grid(280)}>{improvements.map((it, i) => <Insight key={i} {...it} />)}</div>
+            </>
+          )}
+          {predictions.length > 0 && (
+            <>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#cdd9ee", margin: "22px 0 10px" }}>🔮 Recomendaciones para la próxima campaña</div>
+              <div style={grid(280)}>{predictions.map((it, i) => <Insight key={i} {...it} />)}</div>
+            </>
+          )}
+          {insights.length > 0 && (
+            <>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#cdd9ee", margin: "22px 0 10px" }}>📌 Lo destacado</div>
+              <div style={grid(280)}>{insights.map((it, i) => <Insight key={i} {...it} />)}</div>
+            </>
+          )}
         </Section>
       )}
 

@@ -18,6 +18,14 @@ import {
 } from "recharts";
 
 const REFRESH_MS = 60000;
+// Pestañas del informe: el dashboard es largo y así no hay que scrollear todo.
+const MAIN_TABS = [
+  { key: "resumen", label: "📊 Resumen" },
+  { key: "email", label: "📧 Email" },
+  { key: "contactos", label: "👥 Contactos" },
+  { key: "whatsapp", label: "💬 WhatsApp" },
+];
+
 const COLORS = ["#60a5fa", "#4ade80", "#a78bfa", "#f472b6", "#fbbf24", "#22d3ee", "#fb923c", "#94a3b8"];
 
 const fmt = (n) => (typeof n === "number" ? n.toLocaleString("es-CL") : n ?? "—");
@@ -376,6 +384,8 @@ function WaCard({ c }) {
 // ---------------- Page ----------------
 export default function Page() {
   const [data, setData] = useState(null);
+  const [mainTab, setMainTab] = useState("resumen");
+  const showTab = (k) => mainTab === k;
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [compareIds, setCompareIds] = useState([]);
@@ -510,6 +520,21 @@ export default function Page() {
 
       {error && <div style={{ marginTop: 20, background: "#3b1620", border: "1px solid #6b2333", color: "#ffb4c0", padding: "12px 16px", borderRadius: 12 }}>{error}</div>}
 
+      {/* PESTAÑAS */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", margin: "22px 0 24px", borderBottom: "1px solid #1f2b45", paddingBottom: 12 }}>
+        {MAIN_TABS.map((tb) => (
+          <button key={tb.key} onClick={() => setMainTab(tb.key)}
+            style={{
+              background: mainTab === tb.key ? "#2563eb" : "transparent",
+              color: mainTab === tb.key ? "#fff" : "#8aa0bf",
+              border: `1px solid ${mainTab === tb.key ? "#2563eb" : "#1f2b45"}`,
+              borderRadius: 10, padding: "10px 18px", cursor: "pointer",
+              fontSize: 14.5, fontWeight: mainTab === tb.key ? 700 : 500,
+            }}>{tb.label}</button>
+        ))}
+      </div>
+
+      {showTab("resumen") && (<>
       {/* RESUMEN EJECUTIVO */}
       {insights.length > 0 && (
         <Section title="🧠 Resumen ejecutivo" subtitle="Lo más destacado de tus campañas">
@@ -517,6 +542,9 @@ export default function Page() {
         </Section>
       )}
 
+      </>)}
+
+      {showTab("email") && (<>
       {/* EMAIL */}
       <Section title="📧 Email marketing">
         {data?.errors?.email && <div style={{ color: "#ffb4c0", fontSize: 13, marginBottom: 10 }}>{data.errors.email}</div>}
@@ -651,6 +679,9 @@ export default function Page() {
         )}
       </Section>
 
+      </>)}
+
+      {showTab("contactos") && (<>
       {/* CONTACTOS / LISTAS */}
       <Section title="👥 Contactos y listas">
         {data?.errors?.lists && <div style={{ color: "#ffb4c0", fontSize: 13, marginBottom: 10 }}>{data.errors.lists}</div>}
@@ -693,6 +724,9 @@ export default function Page() {
         </div>
       </Section>
 
+      </>)}
+
+      {showTab("whatsapp") && (<>
       {/* WHATSAPP */}
       <Section title="💬 WhatsApp (campañas)" subtitle={wa?.clicksSource === "analytics" ? "Clics medidos vía Google Analytics (utm_campaign)" : "Clics: conecta Google Analytics para medirlos (ver configuración)"}>
         {data?.errors?.whatsapp && <div style={{ color: "#f5c97b", fontSize: 13, marginBottom: 10 }}>WhatsApp no disponible o sin campañas: {data.errors.whatsapp}</div>}
@@ -753,6 +787,8 @@ export default function Page() {
           <div style={grid(280)}>{predictions.map((it, i) => <Insight key={i} {...it} />)}</div>
         </Section>
       )}
+
+      </>)}
 
       <footer style={{ marginTop: 50, color: "#5b6b84", fontSize: 12, textAlign: "center" }}>Datos vía API de Brevo · Ebema</footer>
     </main>
